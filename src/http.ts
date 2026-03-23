@@ -1,9 +1,5 @@
 // sdk-node/src/http.ts
-import {
-  GateCtrApiError,
-  GateCtrNetworkError,
-  GateCtrTimeoutError,
-} from "./errors.js";
+import { GateCtrApiError, GateCtrNetworkError, GateCtrTimeoutError } from "./errors.js";
 
 export interface RequestOptions {
   method: "GET" | "POST";
@@ -70,15 +66,7 @@ function combineSignals(signals: AbortSignal[]): AbortSignal {
  * Throws typed GateCtr errors — never raw fetch errors.
  */
 export async function httpRequest(opts: RequestOptions): Promise<RawResponse> {
-  const {
-    method,
-    url,
-    headers,
-    body,
-    signal: callerSignal,
-    timeoutMs,
-    maxRetries,
-  } = opts;
+  const { method, url, headers, body, signal: callerSignal, timeoutMs, maxRetries } = opts;
 
   let lastError: unknown;
 
@@ -148,18 +136,15 @@ export async function httpRequest(opts: RequestOptions): Promise<RawResponse> {
 
     // Non-retryable client errors — throw immediately
     if (NON_RETRYABLE_STATUSES.has(response.status)) {
-      const requestId =
-        response.headers.get("x-gatectr-request-id") ?? undefined;
+      const requestId = response.headers.get("x-gatectr-request-id") ?? undefined;
       let code = "api_error";
       let message = `HTTP ${String(response.status)}`;
 
       try {
         const errorBody = (await response.json()) as Record<string, unknown>;
         if (typeof errorBody["code"] === "string") code = errorBody["code"];
-        if (typeof errorBody["message"] === "string")
-          message = errorBody["message"];
-        if (typeof errorBody["error"] === "string")
-          message = errorBody["error"];
+        if (typeof errorBody["message"] === "string") message = errorBody["message"];
+        if (typeof errorBody["error"] === "string") message = errorBody["error"];
       } catch {
         // ignore parse errors
       }
@@ -174,16 +159,14 @@ export async function httpRequest(opts: RequestOptions): Promise<RawResponse> {
 
     // Retryable server errors
     if (RETRYABLE_STATUSES.has(response.status)) {
-      const requestId =
-        response.headers.get("x-gatectr-request-id") ?? undefined;
+      const requestId = response.headers.get("x-gatectr-request-id") ?? undefined;
       let code = "server_error";
       let message = `HTTP ${String(response.status)}`;
 
       try {
         const errorBody = (await response.json()) as Record<string, unknown>;
         if (typeof errorBody["code"] === "string") code = errorBody["code"];
-        if (typeof errorBody["message"] === "string")
-          message = errorBody["message"];
+        if (typeof errorBody["message"] === "string") message = errorBody["message"];
       } catch {
         // ignore parse errors
       }
@@ -202,8 +185,7 @@ export async function httpRequest(opts: RequestOptions): Promise<RawResponse> {
     }
 
     // Unknown status — treat as non-retryable
-    const requestId =
-      response.headers.get("x-gatectr-request-id") ?? undefined;
+    const requestId = response.headers.get("x-gatectr-request-id") ?? undefined;
     throw new GateCtrApiError({
       message: `Unexpected HTTP status ${String(response.status)}`,
       status: response.status,
@@ -213,8 +195,9 @@ export async function httpRequest(opts: RequestOptions): Promise<RawResponse> {
   }
 
   // Should never reach here, but TypeScript needs it
-  const fallback = lastError instanceof Error
-    ? lastError
-    : new GateCtrNetworkError("Request failed after retries");
+  const fallback =
+    lastError instanceof Error
+      ? lastError
+      : new GateCtrNetworkError("Request failed after retries");
   throw fallback;
 }

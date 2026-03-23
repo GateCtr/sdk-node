@@ -110,8 +110,8 @@ const response = await client.complete({
   messages,
   gatectr: {
     budgetId: "proj_123", // enforce a specific budget
-    optimize: true,       // override client-level setting
-    route: false,         // disable model router for this call
+    optimize: true, // override client-level setting
+    route: false, // disable model router for this call
   },
 });
 ```
@@ -122,34 +122,30 @@ const response = await client.complete({
 
 ```typescript
 const client = new GateCtr({
-  apiKey: "gct_...",                      // or set GATECTR_API_KEY env var
+  apiKey: "gct_...", // or set GATECTR_API_KEY env var
   baseUrl: "https://api.gatectr.com/v1", // default
-  timeout: 30_000,                        // ms, default 30s
-  maxRetries: 3,                          // default 3
-  optimize: true,                         // enable context optimizer globally
-  route: false,                           // disable model router globally
+  timeout: 30_000, // ms, default 30s
+  maxRetries: 3, // default 3
+  optimize: true, // enable context optimizer globally
+  route: false, // disable model router globally
 });
 ```
 
-| Option       | Type      | Default                        | Description                        |
-| ------------ | --------- | ------------------------------ | ---------------------------------- |
-| `apiKey`     | `string`  | `GATECTR_API_KEY` env var      | Your GateCtr API key               |
-| `baseUrl`    | `string`  | `https://api.gatectr.com/v1`   | API base URL                       |
-| `timeout`    | `number`  | `30000`                        | Request timeout in ms              |
-| `maxRetries` | `number`  | `3`                            | Retries on 429/5xx                 |
-| `optimize`   | `boolean` | `true`                         | Enable context optimizer globally  |
-| `route`      | `boolean` | `false`                        | Enable model router globally       |
+| Option       | Type      | Default                      | Description                       |
+| ------------ | --------- | ---------------------------- | --------------------------------- |
+| `apiKey`     | `string`  | `GATECTR_API_KEY` env var    | Your GateCtr API key              |
+| `baseUrl`    | `string`  | `https://api.gatectr.com/v1` | API base URL                      |
+| `timeout`    | `number`  | `30000`                      | Request timeout in ms             |
+| `maxRetries` | `number`  | `3`                          | Retries on 429/5xx                |
+| `optimize`   | `boolean` | `true`                       | Enable context optimizer globally |
+| `route`      | `boolean` | `false`                      | Enable model router globally      |
 
 ---
 
 ## Error handling
 
 ```typescript
-import {
-  GateCtrApiError,
-  GateCtrTimeoutError,
-  GateCtrNetworkError,
-} from "@gatectr/sdk";
+import { GateCtrApiError, GateCtrTimeoutError, GateCtrNetworkError } from "@gatectr/sdk";
 
 try {
   await client.complete({ model: "gpt-4o", messages });

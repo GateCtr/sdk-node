@@ -51,7 +51,11 @@ export function mockChatResponse(overrides?: Record<string, unknown>) {
   };
 }
 
-export function mockSSEChunk(id: string, content: string, finishReason: string | null = null): string {
+export function mockSSEChunk(
+  id: string,
+  content: string,
+  finishReason: string | null = null,
+): string {
   const data = JSON.stringify({
     id,
     object: "chat.completion.chunk",
@@ -66,17 +70,19 @@ export function mockSSEChunk(id: string, content: string, finishReason: string |
   return `data: ${data}\n\n`;
 }
 
-export function mockSSEResponse(chunks: Array<{ content: string; finishReason?: string | null }> = [
-  { content: "Hello" },
-  { content: " world" },
-  { content: "!", finishReason: "stop" },
-]): Response {
+export function mockSSEResponse(
+  chunks: Array<{ content: string; finishReason?: string | null }> = [
+    { content: "Hello" },
+    { content: " world" },
+    { content: "!", finishReason: "stop" },
+  ],
+): Response {
   const encoder = new TextEncoder();
   const id = "chatcmpl_stream_test";
 
-  const sseBody = chunks
-    .map((c) => mockSSEChunk(id, c.content, c.finishReason ?? null))
-    .join("") + "data: [DONE]\n\n";
+  const sseBody =
+    chunks.map((c) => mockSSEChunk(id, c.content, c.finishReason ?? null)).join("") +
+    "data: [DONE]\n\n";
 
   const stream = new ReadableStream({
     start(controller) {
@@ -162,7 +168,7 @@ export const handlers = [
 
   // POST /chat — handles both streaming and non-streaming
   http.post(`${BASE_URL}/chat`, async ({ request }) => {
-    const body = await request.json() as Record<string, unknown>;
+    const body = (await request.json()) as Record<string, unknown>;
     if (body["stream"] === true) {
       return mockSSEResponse();
     }

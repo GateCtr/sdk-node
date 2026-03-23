@@ -4,7 +4,7 @@ import { writeFileSync } from "fs";
 // so Node.js resolves .js files in that directory as CJS
 writeFileSync(
   new URL("../dist/cjs/package.json", import.meta.url),
-  JSON.stringify({ type: "commonjs" }, null, 2)
+  JSON.stringify({ type: "commonjs" }, null, 2),
 );
 
 console.log("✓ dist/cjs/package.json written");

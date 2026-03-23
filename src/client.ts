@@ -92,27 +92,20 @@ export class GateCtr {
   }
 
   /** Extract GateCtrMetadata from response headers + body */
-  private extractMetadata(
-    headers: Headers,
-    body: Record<string, unknown>,
-  ): GateCtrMetadata {
+  private extractMetadata(headers: Headers, body: Record<string, unknown>): GateCtrMetadata {
     const requestId = headers.get("x-gatectr-request-id") ?? "";
     const latencyMs = parseInt(headers.get("x-gatectr-latency-ms") ?? "0", 10);
     const overage = headers.get("x-gatectr-overage") === "true";
 
     const usage = body["usage"] as Record<string, unknown> | undefined;
-    const tokensSaved =
-      typeof usage?.["saved_tokens"] === "number" ? usage["saved_tokens"] : 0;
-    const modelUsed =
-      typeof body["model"] === "string" ? body["model"] : "";
+    const tokensSaved = typeof usage?.["saved_tokens"] === "number" ? usage["saved_tokens"] : 0;
+    const modelUsed = typeof body["model"] === "string" ? body["model"] : "";
 
     return { requestId, latencyMs, overage, modelUsed, tokensSaved };
   }
 
   /** Merge per-request GateCtr options into the request body */
-  private mergeGatectrOptions(
-    perRequest: PerRequestOptions | undefined,
-  ): Record<string, unknown> {
+  private mergeGatectrOptions(perRequest: PerRequestOptions | undefined): Record<string, unknown> {
     const merged: Record<string, unknown> = {
       optimize: this._optimize,
       route: this._route,
@@ -177,17 +170,17 @@ export class GateCtr {
 
     const usageBody = responseBody["usage"] as Record<string, unknown> | undefined;
     const promptTokens = usageBody !== undefined ? Number(usageBody["prompt_tokens"] ?? 0) : 0;
-    const completionTokens = usageBody !== undefined ? Number(usageBody["completion_tokens"] ?? 0) : 0;
+    const completionTokens =
+      usageBody !== undefined ? Number(usageBody["completion_tokens"] ?? 0) : 0;
     const totalTokens = usageBody !== undefined ? Number(usageBody["total_tokens"] ?? 0) : 0;
 
     return {
       id: typeof responseBody["id"] === "string" ? responseBody["id"] : "",
       object: "text_completion",
       model: typeof responseBody["model"] === "string" ? responseBody["model"] : "",
-      choices: (
-        Array.isArray(responseBody["choices"])
-          ? (responseBody["choices"] as Array<Record<string, unknown>>)
-          : []
+      choices: (Array.isArray(responseBody["choices"])
+        ? (responseBody["choices"] as Array<Record<string, unknown>>)
+        : []
       ).map((c) => ({
         text: typeof c["text"] === "string" ? c["text"] : "",
         finish_reason: typeof c["finish_reason"] === "string" ? c["finish_reason"] : "",
@@ -238,25 +231,25 @@ export class GateCtr {
 
     const usageBody = responseBody["usage"] as Record<string, unknown> | undefined;
     const promptTokens = usageBody !== undefined ? Number(usageBody["prompt_tokens"] ?? 0) : 0;
-    const completionTokens = usageBody !== undefined ? Number(usageBody["completion_tokens"] ?? 0) : 0;
+    const completionTokens =
+      usageBody !== undefined ? Number(usageBody["completion_tokens"] ?? 0) : 0;
     const totalTokens = usageBody !== undefined ? Number(usageBody["total_tokens"] ?? 0) : 0;
 
     return {
       id: typeof responseBody["id"] === "string" ? responseBody["id"] : "",
       object: "chat.completion",
       model: typeof responseBody["model"] === "string" ? responseBody["model"] : "",
-      choices: (
-        Array.isArray(responseBody["choices"])
-          ? (responseBody["choices"] as Array<Record<string, unknown>>)
-          : []
+      choices: (Array.isArray(responseBody["choices"])
+        ? (responseBody["choices"] as Array<Record<string, unknown>>)
+        : []
       ).map((c) => {
         const msg = c["message"] as Record<string, unknown> | undefined;
-        const role = msg !== undefined && typeof msg["role"] === "string"
-          ? (msg["role"] as "system" | "user" | "assistant")
-          : "assistant" as const;
-        const content = msg !== undefined && typeof msg["content"] === "string"
-          ? msg["content"]
-          : "";
+        const role =
+          msg !== undefined && typeof msg["role"] === "string"
+            ? (msg["role"] as "system" | "user" | "assistant")
+            : ("assistant" as const);
+        const content =
+          msg !== undefined && typeof msg["content"] === "string" ? msg["content"] : "";
         return {
           message: { role, content },
           finish_reason: typeof c["finish_reason"] === "string" ? c["finish_reason"] : "",
@@ -326,22 +319,22 @@ export class GateCtr {
     const responseBody = (await raw.json()) as Record<string, unknown>;
     const requestId = raw.headers.get("x-gatectr-request-id") ?? "";
 
-    const modelsRaw =
-      (responseBody["models"] as Array<Record<string, unknown>> | undefined) ??
-      [];
+    const modelsRaw = (responseBody["models"] as Array<Record<string, unknown>> | undefined) ?? [];
 
     return {
       models: modelsRaw.map((m) => ({
-        modelId: typeof m["modelId"] === "string"
-          ? m["modelId"]
-          : typeof m["model_id"] === "string"
-            ? m["model_id"]
-            : "",
-        displayName: typeof m["displayName"] === "string"
-          ? m["displayName"]
-          : typeof m["display_name"] === "string"
-            ? m["display_name"]
-            : "",
+        modelId:
+          typeof m["modelId"] === "string"
+            ? m["modelId"]
+            : typeof m["model_id"] === "string"
+              ? m["model_id"]
+              : "",
+        displayName:
+          typeof m["displayName"] === "string"
+            ? m["displayName"]
+            : typeof m["display_name"] === "string"
+              ? m["display_name"]
+              : "",
         provider: typeof m["provider"] === "string" ? m["provider"] : "",
         contextWindow: Number(m["contextWindow"] ?? m["context_window"] ?? 0),
         capabilities: Array.isArray(m["capabilities"])
@@ -359,8 +352,7 @@ export class GateCtr {
     const url = new URL(`${this._baseUrl}/usage`);
     if (params?.from !== undefined) url.searchParams.set("from", params.from);
     if (params?.to !== undefined) url.searchParams.set("to", params.to);
-    if (params?.projectId !== undefined)
-      url.searchParams.set("projectId", params.projectId);
+    if (params?.projectId !== undefined) url.searchParams.set("projectId", params.projectId);
 
     const raw = await httpRequest({
       method: "GET",
@@ -373,8 +365,7 @@ export class GateCtr {
     const responseBody = (await raw.json()) as Record<string, unknown>;
 
     const byProject = (
-      (responseBody["byProject"] as Array<Record<string, unknown>> | undefined) ??
-      []
+      (responseBody["byProject"] as Array<Record<string, unknown>> | undefined) ?? []
     ).map((p) => ({
       projectId: typeof p["projectId"] === "string" ? p["projectId"] : null,
       totalTokens: Number(p["totalTokens"] ?? 0),
@@ -392,10 +383,7 @@ export class GateCtr {
       byProject,
       ...(responseBody["budgetStatus"] !== undefined
         ? {
-            budgetStatus: responseBody["budgetStatus"] as Record<
-              string,
-              unknown
-            >,
+            budgetStatus: responseBody["budgetStatus"] as Record<string, unknown>,
           }
         : {}),
     };
