@@ -101,7 +101,9 @@ describe("GateCtrError hierarchy", () => {
   it("all error classes have correct name property", () => {
     expect(new GateCtrError("x").name).toBe("GateCtrError");
     expect(new GateCtrConfigError("x").name).toBe("GateCtrConfigError");
-    expect(new GateCtrApiError({ message: "x", status: 400, code: "bad" }).name).toBe("GateCtrApiError");
+    expect(new GateCtrApiError({ message: "x", status: 400, code: "bad" }).name).toBe(
+      "GateCtrApiError",
+    );
     expect(new GateCtrTimeoutError(1000).name).toBe("GateCtrTimeoutError");
     expect(new GateCtrStreamError("x").name).toBe("GateCtrStreamError");
     expect(new GateCtrNetworkError("x").name).toBe("GateCtrNetworkError");
