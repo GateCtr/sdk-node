@@ -74,9 +74,7 @@ describe("parseSSE", () => {
       id: "chatcmpl-1",
       choices: [{ delta: { content: "Hi" }, finish_reason: null }],
     });
-    const stream = makeStream([
-      `data: ${sseData}\n\ndata: [DONE]\n\n`,
-    ]);
+    const stream = makeStream([`data: ${sseData}\n\ndata: [DONE]\n\n`]);
 
     // Should not throw
     const chunks = await collectChunks(parseSSE(stream));
@@ -89,9 +87,7 @@ describe("parseSSE", () => {
       id: "chatcmpl-1",
       choices: [{ delta: { content: "Test" }, finish_reason: null }],
     });
-    const stream = makeStream([
-      `: this is a comment\n\n\ndata: ${sseData}\n\ndata: [DONE]\n\n`,
-    ]);
+    const stream = makeStream([`: this is a comment\n\n\ndata: ${sseData}\n\ndata: [DONE]\n\n`]);
     const chunks = await collectChunks(parseSSE(stream));
     expect(chunks).toHaveLength(1);
     expect(chunks[0]?.delta).toBe("Test");
@@ -136,8 +132,12 @@ describe("parseSSE", () => {
     const gen = parseSSE(stream, controller.signal);
 
     // Consume the first chunk successfully
-    const first = await gen.next();
-    expect(first.value?.delta).toBe("a");
+    const first = (await gen.next()) as IteratorYieldResult<{
+      id: string;
+      delta: string | null;
+      finishReason: string | null;
+    }>;
+    expect(first.value.delta).toBe("a");
 
     // Abort the signal, then the next iteration should throw GateCtrStreamError
     controller.abort();
@@ -174,7 +174,10 @@ describe("parseSSE — stream read error", () => {
 
     const gen = parseSSE(stream);
     await expect(async () => {
-      for await (const _ of gen) { /* consume */ }
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      for await (const _chunk of gen) {
+        /* consume */
+      }
     }).rejects.toThrow(GateCtrStreamError);
   });
 });

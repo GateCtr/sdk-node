@@ -7,8 +7,9 @@
 **Node.js SDK for GateCtr — One gateway. Every LLM.**
 
 [![npm](https://img.shields.io/npm/v/@gatectr/sdk?color=1B4F82)](https://www.npmjs.com/package/@gatectr/sdk)
+[![CI](https://github.com/GateCtr/sdk-node/actions/workflows/ci.yml/badge.svg)](https://github.com/GateCtr/sdk-node/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-00B4C8)](LICENSE)
-[![status](https://img.shields.io/badge/status-operational-38A169)](https://status.gatectr.com)
+[![node](https://img.shields.io/badge/node-%3E%3D22-brightgreen)](https://nodejs.org)
 
 </div>
 
@@ -18,8 +19,9 @@
 
 ```bash
 npm install @gatectr/sdk
-# or
 pnpm add @gatectr/sdk
+yarn add @gatectr/sdk
+bun add @gatectr/sdk
 ```
 
 ## Quick start
@@ -34,10 +36,11 @@ const response = await client.complete({
   messages: [{ role: "user", content: "Hello" }],
 });
 
-console.log(response.choices[0].message.content);
+console.log(response.choices[0]?.text);
+console.log(response.gatectr.tokensSaved); // tokens saved by the optimizer
 ```
 
-One endpoint swap. Your existing OpenAI-compatible code works as-is.
+One endpoint swap. Your existing code works as-is.
 
 ---
 
@@ -45,7 +48,7 @@ One endpoint swap. Your existing OpenAI-compatible code works as-is.
 
 - **-40% tokens** — Context Optimizer compresses prompts before they hit the LLM
 - **Budget Firewall** — Hard caps per project. Requests blocked when limit is reached.
-- **Model Router** — Optionally let GateCtr pick the right model for each request
+- **Model Router** — Let GateCtr pick the right model for each request
 - **Analytics** — Every token, every cost tracked in your dashboard
 - **Webhooks** — Budget alerts pushed to Slack, Teams, or any URL
 
@@ -53,7 +56,7 @@ One endpoint swap. Your existing OpenAI-compatible code works as-is.
 
 ## Usage
 
-### Chat completion
+### Completion
 
 ```typescript
 const response = await client.complete({
@@ -62,23 +65,44 @@ const response = await client.complete({
     { role: "system", content: "You are a helpful assistant." },
     { role: "user", content: "Summarize this document." },
   ],
+  max_tokens: 512,
+  temperature: 0.7,
 });
+```
+
+### Chat
+
+```typescript
+const response = await client.chat({
+  model: "gpt-4o",
+  messages: [{ role: "user", content: "Hello" }],
+});
+
+console.log(response.choices[0]?.message.content);
 ```
 
 ### Streaming
 
 ```typescript
-const stream = await client.stream({
+for await (const chunk of client.stream({
   model: "gpt-4o",
   messages: [{ role: "user", content: "Hello" }],
-});
-
-for await (const chunk of stream) {
+})) {
   process.stdout.write(chunk.delta ?? "");
 }
 ```
 
-### With budget override
+### Models & usage
+
+```typescript
+const { models } = await client.models();
+// [{ modelId: "gpt-4o", provider: "openai", ... }, ...]
+
+const usage = await client.usage({ from: "2025-01-01", to: "2025-01-31" });
+// { totalTokens: 150000, savedTokens: 45000, ... }
+```
+
+### Per-request options
 
 ```typescript
 const response = await client.complete({
@@ -86,22 +110,10 @@ const response = await client.complete({
   messages,
   gatectr: {
     budgetId: "proj_123", // enforce a specific budget
-    optimize: true, // enable context optimizer
-    route: false, // disable model router for this call
+    optimize: true,       // override client-level setting
+    route: false,         // disable model router for this call
   },
 });
-```
-
-### Model Router (auto-select)
-
-```typescript
-const response = await client.complete({
-  model: "auto", // GateCtr picks the optimal model
-  messages,
-});
-
-console.log(response.gatectr.modelUsed); // e.g. "gpt-3.5-turbo"
-console.log(response.gatectr.tokensSaved); // e.g. 312
 ```
 
 ---
@@ -110,21 +122,55 @@ console.log(response.gatectr.tokensSaved); // e.g. 312
 
 ```typescript
 const client = new GateCtr({
-  apiKey: "your-api-key", // required — get it at gatectr.com
+  apiKey: "gct_...",                      // or set GATECTR_API_KEY env var
   baseUrl: "https://api.gatectr.com/v1", // default
-  timeout: 30_000, // ms, default 30s
-  optimize: true, // enable context optimizer globally
-  route: false, // disable model router globally
+  timeout: 30_000,                        // ms, default 30s
+  maxRetries: 3,                          // default 3
+  optimize: true,                         // enable context optimizer globally
+  route: false,                           // disable model router globally
 });
 ```
 
-| Option     | Type      | Default                      | Description              |
-| ---------- | --------- | ---------------------------- | ------------------------ |
-| `apiKey`   | `string`  | —                            | Your GateCtr API key     |
-| `baseUrl`  | `string`  | `https://api.gatectr.com/v1` | API base URL             |
-| `timeout`  | `number`  | `30000`                      | Request timeout in ms    |
-| `optimize` | `boolean` | `true`                       | Enable context optimizer |
-| `route`    | `boolean` | `false`                      | Enable model router      |
+| Option       | Type      | Default                        | Description                        |
+| ------------ | --------- | ------------------------------ | ---------------------------------- |
+| `apiKey`     | `string`  | `GATECTR_API_KEY` env var      | Your GateCtr API key               |
+| `baseUrl`    | `string`  | `https://api.gatectr.com/v1`   | API base URL                       |
+| `timeout`    | `number`  | `30000`                        | Request timeout in ms              |
+| `maxRetries` | `number`  | `3`                            | Retries on 429/5xx                 |
+| `optimize`   | `boolean` | `true`                         | Enable context optimizer globally  |
+| `route`      | `boolean` | `false`                        | Enable model router globally       |
+
+---
+
+## Error handling
+
+```typescript
+import {
+  GateCtrApiError,
+  GateCtrTimeoutError,
+  GateCtrNetworkError,
+} from "@gatectr/sdk";
+
+try {
+  await client.complete({ model: "gpt-4o", messages });
+} catch (err) {
+  if (err instanceof GateCtrApiError) {
+    console.error(err.status, err.code, err.requestId);
+  } else if (err instanceof GateCtrTimeoutError) {
+    console.error(`Timed out after ${err.timeoutMs}ms`);
+  } else if (err instanceof GateCtrNetworkError) {
+    console.error("Network error", err.cause);
+  }
+}
+```
+
+| Error class           | When                                      |
+| --------------------- | ----------------------------------------- |
+| `GateCtrConfigError`  | Invalid `apiKey` or `baseUrl` at init     |
+| `GateCtrApiError`     | Non-2xx response from the API             |
+| `GateCtrTimeoutError` | Request exceeded `timeout`                |
+| `GateCtrNetworkError` | Network failure (DNS, connection refused) |
+| `GateCtrStreamError`  | SSE stream parse or connection error      |
 
 ---
 
@@ -147,11 +193,11 @@ const openai = new OpenAI({
 
 ## Requirements
 
-- Node.js 18+
+- Node.js 22+
 - TypeScript 5+ (optional but recommended)
 
 ---
 
 ## Links
 
-[Dashboard](https://gatectr.com) · [Docs](https://docs.gatectr.com) · [Status](https://status.gatectr.com) · [X](https://x.com/gatectrl)
+[Dashboard](https://gatectr.com) · [Docs](https://docs.gatectr.com) · [Status](https://status.gatectr.com) · [npm](https://www.npmjs.com/package/@gatectr/sdk)

@@ -6,19 +6,22 @@ import { describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
 import * as fc from "fast-check";
 import { http, HttpResponse } from "msw";
 import { GateCtr } from "../src/client.js";
-import {
-  GateCtrConfigError,
-  GateCtrApiError,
-} from "../src/errors.js";
+import { GateCtrConfigError, GateCtrApiError } from "../src/errors.js";
 import { backoffMs } from "../src/http.js";
 import { server } from "./handlers.js";
 import type { CompleteResponse } from "../src/types.js";
 
 // ─── MSW server lifecycle ────────────────────────────────────────────────────
 
-beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
-afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
+beforeAll(() => {
+  server.listen({ onUnhandledRequest: "error" });
+});
+afterEach(() => {
+  server.resetHandlers();
+});
+afterAll(() => {
+  server.close();
+});
 
 // ─── Arbitraries ─────────────────────────────────────────────────────────────
 
@@ -263,45 +266,48 @@ describe("Property 6: Response metadata is correctly extracted", () => {
     });
 
     await fc.assert(
-      fc.asyncProperty(metadataArb, async ({ requestId, latencyMs, overage, modelUsed, tokensSaved }) => {
-        server.use(
-          http.post("https://api.gatectr.com/v1/complete", () =>
-            HttpResponse.json(
-              {
-                id: "cmpl_1",
-                object: "text_completion",
-                model: modelUsed,
-                choices: [{ text: "ok", finish_reason: "stop" }],
-                usage: {
-                  prompt_tokens: 10,
-                  completion_tokens: 5,
-                  total_tokens: 15,
-                  saved_tokens: tokensSaved,
+      fc.asyncProperty(
+        metadataArb,
+        async ({ requestId, latencyMs, overage, modelUsed, tokensSaved }) => {
+          server.use(
+            http.post("https://api.gatectr.com/v1/complete", () =>
+              HttpResponse.json(
+                {
+                  id: "cmpl_1",
+                  object: "text_completion",
+                  model: modelUsed,
+                  choices: [{ text: "ok", finish_reason: "stop" }],
+                  usage: {
+                    prompt_tokens: 10,
+                    completion_tokens: 5,
+                    total_tokens: 15,
+                    saved_tokens: tokensSaved,
+                  },
                 },
-              },
-              {
-                headers: {
-                  "x-gatectr-request-id": requestId,
-                  "x-gatectr-latency-ms": String(latencyMs),
-                  "x-gatectr-overage": String(overage),
+                {
+                  headers: {
+                    "x-gatectr-request-id": requestId,
+                    "x-gatectr-latency-ms": String(latencyMs),
+                    "x-gatectr-overage": String(overage),
+                  },
                 },
-              },
+              ),
             ),
-          ),
-        );
+          );
 
-        const client = new GateCtr({ apiKey: "test-key" });
-        const response = await client.complete({
-          model: "gpt-4o",
-          messages: [{ role: "user", content: "hi" }],
-        });
+          const client = new GateCtr({ apiKey: "test-key" });
+          const response = await client.complete({
+            model: "gpt-4o",
+            messages: [{ role: "user", content: "hi" }],
+          });
 
-        expect(response.gatectr.requestId).toBe(requestId);
-        expect(response.gatectr.latencyMs).toBe(latencyMs);
-        expect(response.gatectr.overage).toBe(overage);
-        expect(response.gatectr.modelUsed).toBe(modelUsed);
-        expect(response.gatectr.tokensSaved).toBe(tokensSaved);
-      }),
+          expect(response.gatectr.requestId).toBe(requestId);
+          expect(response.gatectr.latencyMs).toBe(latencyMs);
+          expect(response.gatectr.overage).toBe(overage);
+          expect(response.gatectr.modelUsed).toBe(modelUsed);
+          expect(response.gatectr.tokensSaved).toBe(tokensSaved);
+        },
+      ),
       { numRuns: 50 },
     );
   });
@@ -321,44 +327,47 @@ describe("Property 7: Per-request options override client defaults", () => {
     });
 
     await fc.assert(
-      fc.asyncProperty(overrideArb, async ({ clientOptimize, clientRoute, perOptimize, perRoute }) => {
-        let capturedBody: Record<string, unknown> | undefined;
+      fc.asyncProperty(
+        overrideArb,
+        async ({ clientOptimize, clientRoute, perOptimize, perRoute }) => {
+          let capturedBody: Record<string, unknown> | undefined;
 
-        server.use(
-          http.post("https://api.gatectr.com/v1/complete", async ({ request }) => {
-            capturedBody = await request.json() as Record<string, unknown>;
-            return HttpResponse.json({
-              id: "cmpl_1",
-              object: "text_completion",
-              model: "gpt-4o",
-              choices: [{ text: "ok", finish_reason: "stop" }],
-              usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2, saved_tokens: 0 },
-            });
-          }),
-        );
+          server.use(
+            http.post("https://api.gatectr.com/v1/complete", async ({ request }) => {
+              capturedBody = (await request.json()) as Record<string, unknown>;
+              return HttpResponse.json({
+                id: "cmpl_1",
+                object: "text_completion",
+                model: "gpt-4o",
+                choices: [{ text: "ok", finish_reason: "stop" }],
+                usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2, saved_tokens: 0 },
+              });
+            }),
+          );
 
-        const client = new GateCtr({
-          apiKey: "test-key",
-          optimize: clientOptimize,
-          route: clientRoute,
-        });
+          const client = new GateCtr({
+            apiKey: "test-key",
+            optimize: clientOptimize,
+            route: clientRoute,
+          });
 
-        const gatectr: Record<string, boolean> = {};
-        if (perOptimize !== undefined) gatectr["optimize"] = perOptimize;
-        if (perRoute !== undefined) gatectr["route"] = perRoute;
+          const gatectr: Record<string, boolean> = {};
+          if (perOptimize !== undefined) gatectr["optimize"] = perOptimize;
+          if (perRoute !== undefined) gatectr["route"] = perRoute;
 
-        await client.complete({
-          model: "gpt-4o",
-          messages: [{ role: "user", content: "hi" }],
-          ...(Object.keys(gatectr).length > 0 ? { gatectr } : {}),
-        });
+          await client.complete({
+            model: "gpt-4o",
+            messages: [{ role: "user", content: "hi" }],
+            ...(Object.keys(gatectr).length > 0 ? { gatectr } : {}),
+          });
 
-        const expectedOptimize = perOptimize !== undefined ? perOptimize : clientOptimize;
-        const expectedRoute = perRoute !== undefined ? perRoute : clientRoute;
+          const expectedOptimize = perOptimize !== undefined ? perOptimize : clientOptimize;
+          const expectedRoute = perRoute !== undefined ? perRoute : clientRoute;
 
-        expect(capturedBody?.["optimize"]).toBe(expectedOptimize);
-        expect(capturedBody?.["route"]).toBe(expectedRoute);
-      }),
+          expect(capturedBody?.["optimize"]).toBe(expectedOptimize);
+          expect(capturedBody?.["route"]).toBe(expectedRoute);
+        },
+      ),
       { numRuns: 100 },
     );
   });
@@ -421,16 +430,13 @@ describe("Property 10: Non-2xx responses throw GateCtrApiError with correct stat
 describe("Property 13: Retry backoff delays are monotonically non-decreasing (base, no jitter)", () => {
   it("base delay (500 * 2^attempt) is strictly increasing up to the 10s cap", () => {
     fc.assert(
-      fc.property(
-        fc.integer({ min: 0, max: 8 }),
-        (attempt) => {
-          // Base formula without jitter: 500 * 2^attempt, capped at 10_000
-          const base = (a: number) => Math.min(500 * Math.pow(2, a), 10_000);
-          if (base(attempt) < 10_000) {
-            expect(base(attempt + 1)).toBeGreaterThanOrEqual(base(attempt));
-          }
-        },
-      ),
+      fc.property(fc.integer({ min: 0, max: 8 }), (attempt) => {
+        // Base formula without jitter: 500 * 2^attempt, capped at 10_000
+        const base = (a: number) => Math.min(500 * Math.pow(2, a), 10_000);
+        if (base(attempt) < 10_000) {
+          expect(base(attempt + 1)).toBeGreaterThanOrEqual(base(attempt));
+        }
+      }),
       { numRuns: 100 },
     );
   });
@@ -464,48 +470,51 @@ describe("Property 14: CompleteResponse round-trips through JSON without data lo
     });
 
     await fc.assert(
-      fc.asyncProperty(metadataArb, async ({ requestId, latencyMs, overage, modelUsed, tokensSaved }) => {
-        server.use(
-          http.post("https://api.gatectr.com/v1/complete", () =>
-            HttpResponse.json(
-              {
-                id: "cmpl_rt",
-                object: "text_completion",
-                model: modelUsed,
-                choices: [{ text: "ok", finish_reason: "stop" }],
-                usage: {
-                  prompt_tokens: 5,
-                  completion_tokens: 3,
-                  total_tokens: 8,
-                  saved_tokens: tokensSaved,
+      fc.asyncProperty(
+        metadataArb,
+        async ({ requestId, latencyMs, overage, modelUsed, tokensSaved }) => {
+          server.use(
+            http.post("https://api.gatectr.com/v1/complete", () =>
+              HttpResponse.json(
+                {
+                  id: "cmpl_rt",
+                  object: "text_completion",
+                  model: modelUsed,
+                  choices: [{ text: "ok", finish_reason: "stop" }],
+                  usage: {
+                    prompt_tokens: 5,
+                    completion_tokens: 3,
+                    total_tokens: 8,
+                    saved_tokens: tokensSaved,
+                  },
                 },
-              },
-              {
-                headers: {
-                  "x-gatectr-request-id": requestId,
-                  "x-gatectr-latency-ms": String(latencyMs),
-                  "x-gatectr-overage": String(overage),
+                {
+                  headers: {
+                    "x-gatectr-request-id": requestId,
+                    "x-gatectr-latency-ms": String(latencyMs),
+                    "x-gatectr-overage": String(overage),
+                  },
                 },
-              },
+              ),
             ),
-          ),
-        );
+          );
 
-        const client = new GateCtr({ apiKey: "test-key" });
-        const response = await client.complete({
-          model: "gpt-4o",
-          messages: [{ role: "user", content: "hi" }],
-        });
+          const client = new GateCtr({ apiKey: "test-key" });
+          const response = await client.complete({
+            model: "gpt-4o",
+            messages: [{ role: "user", content: "hi" }],
+          });
 
-        // Round-trip through JSON
-        const roundTripped = JSON.parse(JSON.stringify(response)) as CompleteResponse;
+          // Round-trip through JSON
+          const roundTripped = JSON.parse(JSON.stringify(response)) as CompleteResponse;
 
-        expect(roundTripped.gatectr.requestId).toBe(requestId);
-        expect(roundTripped.gatectr.latencyMs).toBe(latencyMs);
-        expect(roundTripped.gatectr.overage).toBe(overage);
-        expect(roundTripped.gatectr.modelUsed).toBe(modelUsed);
-        expect(roundTripped.gatectr.tokensSaved).toBe(tokensSaved);
-      }),
+          expect(roundTripped.gatectr.requestId).toBe(requestId);
+          expect(roundTripped.gatectr.latencyMs).toBe(latencyMs);
+          expect(roundTripped.gatectr.overage).toBe(overage);
+          expect(roundTripped.gatectr.modelUsed).toBe(modelUsed);
+          expect(roundTripped.gatectr.tokensSaved).toBe(tokensSaved);
+        },
+      ),
       { numRuns: 50 },
     );
   });
