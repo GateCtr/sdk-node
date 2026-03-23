@@ -5,7 +5,6 @@ import {
   server,
   mockCompleteResponse,
   mockChatResponse,
-  mockModelsResponse,
   mockUsageResponse,
   mockSSEResponse,
   DEFAULT_RESPONSE_HEADERS,
@@ -16,9 +15,15 @@ import { GateCtrConfigError, GateCtrApiError } from "../src/errors.js";
 const BASE_URL = "https://api.gatectr.com/v1";
 const TEST_API_KEY = "gct_test_key_abc123";
 
-beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
-afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
+beforeAll(() => {
+  server.listen({ onUnhandledRequest: "error" });
+});
+afterEach(() => {
+  server.resetHandlers();
+});
+afterAll(() => {
+  server.close();
+});
 
 // ─── Construction ────────────────────────────────────────────────────────────
 
@@ -60,15 +65,15 @@ describe("GateCtr construction", () => {
   });
 
   it("throws GateCtrConfigError for invalid baseUrl (ftp://)", () => {
-    expect(() =>
-      new GateCtr({ apiKey: TEST_API_KEY, baseUrl: "ftp://invalid.com" }),
-    ).toThrow(GateCtrConfigError);
+    expect(() => new GateCtr({ apiKey: TEST_API_KEY, baseUrl: "ftp://invalid.com" })).toThrow(
+      GateCtrConfigError,
+    );
   });
 
   it("throws GateCtrConfigError for non-URL baseUrl", () => {
-    expect(() =>
-      new GateCtr({ apiKey: TEST_API_KEY, baseUrl: "not-a-url" }),
-    ).toThrow(GateCtrConfigError);
+    expect(() => new GateCtr({ apiKey: TEST_API_KEY, baseUrl: "not-a-url" })).toThrow(
+      GateCtrConfigError,
+    );
   });
 
   it("strips trailing slash from baseUrl", async () => {
@@ -205,10 +210,7 @@ describe("GateCtr.complete()", () => {
   it("throws GateCtrApiError on 401", async () => {
     server.use(
       http.post(`${BASE_URL}/complete`, () =>
-        HttpResponse.json(
-          { code: "invalid_api_key", message: "Unauthorized" },
-          { status: 401 },
-        ),
+        HttpResponse.json({ code: "invalid_api_key", message: "Unauthorized" }, { status: 401 }),
       ),
     );
 
@@ -234,9 +236,7 @@ describe("GateCtr.chat()", () => {
 
     expect(response.id).toBe("chatcmpl_test123");
     expect(response.object).toBe("chat.completion");
-    expect(response.choices[0]?.message.content).toBe(
-      "Hello! How can I help you?",
-    );
+    expect(response.choices[0]?.message.content).toBe("Hello! How can I help you?");
     expect(response.choices[0]?.message.role).toBe("assistant");
   });
 
@@ -282,14 +282,15 @@ describe("GateCtr.stream()", () => {
 
     const client = new GateCtr({ apiKey: TEST_API_KEY });
     // Consume the stream
-    for await (const _ of client.stream({
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    for await (const _chunk of client.stream({
       model: "gpt-4o",
       messages: [{ role: "user", content: "hi" }],
     })) {
       // drain
     }
 
-    expect((capturedBody as Record<string, unknown>)?.["stream"]).toBe(true);
+    expect((capturedBody as Record<string, unknown>)["stream"]).toBe(true);
   });
 });
 
@@ -360,10 +361,7 @@ describe("Security — apiKey never leaks", () => {
   it("does not include apiKey in GateCtrApiError message or toJSON()", async () => {
     server.use(
       http.post(`${BASE_URL}/complete`, () =>
-        HttpResponse.json(
-          { code: "invalid_api_key", message: "Unauthorized" },
-          { status: 401 },
-        ),
+        HttpResponse.json({ code: "invalid_api_key", message: "Unauthorized" }, { status: 401 }),
       ),
     );
 
@@ -401,7 +399,7 @@ describe("GateCtr — budgetId per-request option", () => {
     let capturedBody: Record<string, unknown> | undefined;
     server.use(
       http.post("https://api.gatectr.com/v1/complete", async ({ request }) => {
-        capturedBody = await request.json() as Record<string, unknown>;
+        capturedBody = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json(mockCompleteResponse(), { headers: DEFAULT_RESPONSE_HEADERS });
       }),
     );
@@ -440,15 +438,20 @@ describe("GateCtr — models() snake_case fallback", () => {
   it("falls back to model_id and display_name snake_case fields", async () => {
     server.use(
       http.get("https://api.gatectr.com/v1/models", () =>
-        HttpResponse.json({
-          models: [{
-            model_id: "claude-3-5-sonnet",
-            display_name: "Claude 3.5 Sonnet",
-            provider: "anthropic",
-            context_window: 200000,
-            capabilities: ["chat"],
-          }],
-        }, { headers: DEFAULT_RESPONSE_HEADERS }),
+        HttpResponse.json(
+          {
+            models: [
+              {
+                model_id: "claude-3-5-sonnet",
+                display_name: "Claude 3.5 Sonnet",
+                provider: "anthropic",
+                context_window: 200000,
+                capabilities: ["chat"],
+              },
+            ],
+          },
+          { headers: DEFAULT_RESPONSE_HEADERS },
+        ),
       ),
     );
 
@@ -463,13 +466,16 @@ describe("GateCtr — response without usage body", () => {
   it("returns zero usage counts when usage field is absent from response", async () => {
     server.use(
       http.post("https://api.gatectr.com/v1/complete", () =>
-        HttpResponse.json({
-          id: "cmpl_no_usage",
-          object: "text_completion",
-          model: "gpt-4o",
-          choices: [{ text: "ok", finish_reason: "stop" }],
-          // no usage field
-        }, { headers: DEFAULT_RESPONSE_HEADERS }),
+        HttpResponse.json(
+          {
+            id: "cmpl_no_usage",
+            object: "text_completion",
+            model: "gpt-4o",
+            choices: [{ text: "ok", finish_reason: "stop" }],
+            // no usage field
+          },
+          { headers: DEFAULT_RESPONSE_HEADERS },
+        ),
       ),
     );
 
@@ -491,7 +497,7 @@ describe("GateCtr — complete() with max_tokens and temperature", () => {
     let capturedBody: Record<string, unknown> | undefined;
     server.use(
       http.post("https://api.gatectr.com/v1/complete", async ({ request }) => {
-        capturedBody = await request.json() as Record<string, unknown>;
+        capturedBody = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json(mockCompleteResponse(), { headers: DEFAULT_RESPONSE_HEADERS });
       }),
     );
@@ -513,13 +519,16 @@ describe("GateCtr — chat() with missing message field in choice", () => {
   it("defaults role to assistant and content to empty string when message is absent", async () => {
     server.use(
       http.post("https://api.gatectr.com/v1/chat", () =>
-        HttpResponse.json({
-          id: "chatcmpl_no_msg",
-          object: "chat.completion",
-          model: "gpt-4o",
-          choices: [{ finish_reason: "stop" }], // no message field
-          usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2, saved_tokens: 0 },
-        }, { headers: DEFAULT_RESPONSE_HEADERS }),
+        HttpResponse.json(
+          {
+            id: "chatcmpl_no_msg",
+            object: "chat.completion",
+            model: "gpt-4o",
+            choices: [{ finish_reason: "stop" }], // no message field
+            usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2, saved_tokens: 0 },
+          },
+          { headers: DEFAULT_RESPONSE_HEADERS },
+        ),
       ),
     );
 
@@ -537,11 +546,13 @@ describe("GateCtr — chat() with missing message field in choice", () => {
 describe("GateCtr — stream() with null body", () => {
   it("returns without yielding when response body is null", async () => {
     server.use(
-      http.post("https://api.gatectr.com/v1/chat", () =>
-        new HttpResponse(null, {
-          status: 200,
-          headers: DEFAULT_RESPONSE_HEADERS,
-        }),
+      http.post(
+        "https://api.gatectr.com/v1/chat",
+        () =>
+          new HttpResponse(null, {
+            status: 200,
+            headers: DEFAULT_RESPONSE_HEADERS,
+          }),
       ),
     );
 
@@ -561,13 +572,16 @@ describe("GateCtr — complete() with non-array choices", () => {
   it("returns empty choices array when choices field is absent", async () => {
     server.use(
       http.post("https://api.gatectr.com/v1/complete", () =>
-        HttpResponse.json({
-          id: "cmpl_no_choices",
-          object: "text_completion",
-          model: "gpt-4o",
-          // no choices field
-          usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2, saved_tokens: 0 },
-        }, { headers: DEFAULT_RESPONSE_HEADERS }),
+        HttpResponse.json(
+          {
+            id: "cmpl_no_choices",
+            object: "text_completion",
+            model: "gpt-4o",
+            // no choices field
+            usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2, saved_tokens: 0 },
+          },
+          { headers: DEFAULT_RESPONSE_HEADERS },
+        ),
       ),
     );
 
@@ -584,15 +598,20 @@ describe("GateCtr — models() contextWindow snake_case fallback", () => {
   it("reads context_window when contextWindow is absent", async () => {
     server.use(
       http.get("https://api.gatectr.com/v1/models", () =>
-        HttpResponse.json({
-          models: [{
-            modelId: "gpt-4o",
-            displayName: "GPT-4o",
-            provider: "openai",
-            context_window: 128000,   // snake_case only
-            capabilities: ["chat"],
-          }],
-        }, { headers: DEFAULT_RESPONSE_HEADERS }),
+        HttpResponse.json(
+          {
+            models: [
+              {
+                modelId: "gpt-4o",
+                displayName: "GPT-4o",
+                provider: "openai",
+                context_window: 128000, // snake_case only
+                capabilities: ["chat"],
+              },
+            ],
+          },
+          { headers: DEFAULT_RESPONSE_HEADERS },
+        ),
       ),
     );
 
@@ -604,9 +623,12 @@ describe("GateCtr — models() contextWindow snake_case fallback", () => {
   it("returns 0 contextWindow when both camelCase and snake_case are absent", async () => {
     server.use(
       http.get("https://api.gatectr.com/v1/models", () =>
-        HttpResponse.json({
-          models: [{ modelId: "x", displayName: "X", provider: "p", capabilities: [] }],
-        }, { headers: DEFAULT_RESPONSE_HEADERS }),
+        HttpResponse.json(
+          {
+            models: [{ modelId: "x", displayName: "X", provider: "p", capabilities: [] }],
+          },
+          { headers: DEFAULT_RESPONSE_HEADERS },
+        ),
       ),
     );
 
@@ -620,10 +642,13 @@ describe("GateCtr — usage() with budgetStatus in response", () => {
   it("includes budgetStatus when present in response body", async () => {
     server.use(
       http.get("https://api.gatectr.com/v1/usage", () =>
-        HttpResponse.json({
-          ...mockUsageResponse(),
-          budgetStatus: { proj_abc: { used: 1000, limit: 50000 } },
-        }, { headers: DEFAULT_RESPONSE_HEADERS }),
+        HttpResponse.json(
+          {
+            ...mockUsageResponse(),
+            budgetStatus: { proj_abc: { used: 1000, limit: 50000 } },
+          },
+          { headers: DEFAULT_RESPONSE_HEADERS },
+        ),
       ),
     );
 
@@ -638,10 +663,13 @@ describe("GateCtr — usage() byProject with null projectId", () => {
   it("maps null projectId correctly", async () => {
     server.use(
       http.get("https://api.gatectr.com/v1/usage", () =>
-        HttpResponse.json({
-          ...mockUsageResponse(),
-          byProject: [{ projectId: null, totalTokens: 100, totalRequests: 5, totalCostUsd: 0.5 }],
-        }, { headers: DEFAULT_RESPONSE_HEADERS }),
+        HttpResponse.json(
+          {
+            ...mockUsageResponse(),
+            byProject: [{ projectId: null, totalTokens: 100, totalRequests: 5, totalCostUsd: 0.5 }],
+          },
+          { headers: DEFAULT_RESPONSE_HEADERS },
+        ),
       ),
     );
 
@@ -655,9 +683,16 @@ describe("GateCtr — models() defensive fallbacks", () => {
   it("returns empty strings and empty array when all model fields are missing", async () => {
     server.use(
       http.get("https://api.gatectr.com/v1/models", () =>
-        HttpResponse.json({
-          models: [{ /* completely empty model object */ }],
-        }, { headers: DEFAULT_RESPONSE_HEADERS }),
+        HttpResponse.json(
+          {
+            models: [
+              {
+                /* completely empty model object */
+              },
+            ],
+          },
+          { headers: DEFAULT_RESPONSE_HEADERS },
+        ),
       ),
     );
 
@@ -686,14 +721,17 @@ describe("GateCtr — usage() defensive fallbacks", () => {
   it("returns empty strings for from/to when absent in response", async () => {
     server.use(
       http.get("https://api.gatectr.com/v1/usage", () =>
-        HttpResponse.json({
-          totalTokens: 0,
-          totalRequests: 0,
-          totalCostUsd: 0,
-          savedTokens: 0,
-          // no from/to
-          byProject: [],
-        }, { headers: DEFAULT_RESPONSE_HEADERS }),
+        HttpResponse.json(
+          {
+            totalTokens: 0,
+            totalRequests: 0,
+            totalCostUsd: 0,
+            savedTokens: 0,
+            // no from/to
+            byProject: [],
+          },
+          { headers: DEFAULT_RESPONSE_HEADERS },
+        ),
       ),
     );
 
@@ -756,13 +794,16 @@ describe("GateCtr — chat() with non-array choices", () => {
   it("returns empty choices array when choices field is absent in chat response", async () => {
     server.use(
       http.post("https://api.gatectr.com/v1/chat", () =>
-        HttpResponse.json({
-          id: "chatcmpl_no_choices",
-          object: "chat.completion",
-          model: "gpt-4o",
-          // no choices field
-          usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2, saved_tokens: 0 },
-        }, { headers: DEFAULT_RESPONSE_HEADERS }),
+        HttpResponse.json(
+          {
+            id: "chatcmpl_no_choices",
+            object: "chat.completion",
+            model: "gpt-4o",
+            // no choices field
+            usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2, saved_tokens: 0 },
+          },
+          { headers: DEFAULT_RESPONSE_HEADERS },
+        ),
       ),
     );
 

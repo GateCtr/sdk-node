@@ -16,9 +16,11 @@ export async function* parseSSE(
   let buffer = "";
 
   try {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     while (true) {
       // Check for cancellation before each read
-      if (signal?.aborted) {
+
+      if (signal !== undefined && signal.aborted) {
         throw new GateCtrStreamError("Stream cancelled by caller");
       }
 
@@ -65,10 +67,7 @@ export async function* parseSSE(
           try {
             parsed = JSON.parse(data);
           } catch (err) {
-            throw new GateCtrStreamError(
-              `Failed to parse SSE data as JSON: ${data}`,
-              err,
-            );
+            throw new GateCtrStreamError(`Failed to parse SSE data as JSON: ${data}`, err);
           }
 
           const chunk = parsed as Record<string, unknown>;

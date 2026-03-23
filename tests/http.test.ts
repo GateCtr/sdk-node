@@ -1,28 +1,23 @@
 // sdk-node/tests/http.test.ts
-import {
-  describe,
-  it,
-  expect,
-  beforeAll,
-  afterAll,
-  afterEach,
-} from "vitest";
+import { describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { httpRequest, backoffMs } from "../src/http.js";
-import {
-  GateCtrApiError,
-  GateCtrTimeoutError,
-  GateCtrNetworkError,
-} from "../src/errors.js";
+import { GateCtrApiError, GateCtrTimeoutError } from "../src/errors.js";
 
 const BASE_URL = "https://api.gatectr.com/v1";
 
 const server = setupServer();
 
-beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
-afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
+beforeAll(() => {
+  server.listen({ onUnhandledRequest: "error" });
+});
+afterEach(() => {
+  server.resetHandlers();
+});
+afterAll(() => {
+  server.close();
+});
 
 const defaultOpts = {
   method: "POST" as const,
@@ -70,7 +65,7 @@ describe("httpRequest — non-retryable errors", () => {
         http.post(`${BASE_URL}/complete`, () => {
           callCount++;
           return HttpResponse.json(
-            { code: "test_error", message: `Error ${status}` },
+            { code: "test_error", message: `Error ${String(status)}` },
             { status },
           );
         }),
@@ -84,10 +79,7 @@ describe("httpRequest — non-retryable errors", () => {
   it("throws GateCtrApiError with correct status for 401", async () => {
     server.use(
       http.post(`${BASE_URL}/complete`, () =>
-        HttpResponse.json(
-          { code: "invalid_api_key", message: "Unauthorized" },
-          { status: 401 },
-        ),
+        HttpResponse.json({ code: "invalid_api_key", message: "Unauthorized" }, { status: 401 }),
       ),
     );
 
@@ -113,22 +105,19 @@ describe("httpRequest — retry logic", () => {
     expect(callCount).toBe(3); // 1 initial + 2 retries
   });
 
-  it.each([429, 500, 502, 503, 504])(
-    "retries on status %i",
-    async (status) => {
-      let callCount = 0;
-      server.use(
-        http.post(`${BASE_URL}/complete`, () => {
-          callCount++;
-          return HttpResponse.json({ code: "error" }, { status });
-        }),
-      );
+  it.each([429, 500, 502, 503, 504])("retries on status %i", async (status) => {
+    let callCount = 0;
+    server.use(
+      http.post(`${BASE_URL}/complete`, () => {
+        callCount++;
+        return HttpResponse.json({ code: "error" }, { status });
+      }),
+    );
 
-      const opts = { ...defaultOpts, maxRetries: 1 };
-      await expect(httpRequest(opts)).rejects.toThrow(GateCtrApiError);
-      expect(callCount).toBe(2);
-    },
-  );
+    const opts = { ...defaultOpts, maxRetries: 1 };
+    await expect(httpRequest(opts)).rejects.toThrow(GateCtrApiError);
+    expect(callCount).toBe(2);
+  });
 
   it("succeeds on retry after initial failure", async () => {
     let callCount = 0;
@@ -165,19 +154,24 @@ describe("httpRequest — timeout", () => {
 
 describe("httpRequest — headers", () => {
   it("sends Authorization, User-Agent, and Content-Type headers", async () => {
-    let capturedHeaders: Headers | null = null;
+    const captured: { authorization: string; contentType: string; userAgent: string } = {
+      authorization: "",
+      contentType: "",
+      userAgent: "",
+    };
     server.use(
       http.post(`${BASE_URL}/complete`, ({ request }) => {
-        capturedHeaders = request.headers;
+        captured.authorization = request.headers.get("authorization") ?? "";
+        captured.contentType = request.headers.get("content-type") ?? "";
+        captured.userAgent = request.headers.get("user-agent") ?? "";
         return HttpResponse.json({});
       }),
     );
 
     await httpRequest(defaultOpts);
-    expect(capturedHeaders).not.toBeNull();
-    expect(capturedHeaders!.get("authorization")).toBe("Bearer gct_test");
-    expect(capturedHeaders!.get("content-type")).toBe("application/json");
-    expect(capturedHeaders!.get("user-agent")).toContain("@gatectr/sdk");
+    expect(captured.authorization).toBe("Bearer gct_test");
+    expect(captured.contentType).toBe("application/json");
+    expect(captured.userAgent).toContain("@gatectr/sdk");
   });
 });
 
@@ -215,11 +209,7 @@ describe("backoffMs", () => {
 
 describe("httpRequest — unknown status code", () => {
   it("throws GateCtrApiError with unexpected_status code for unknown status", async () => {
-    server.use(
-      http.post(`${BASE_URL}/complete`, () =>
-        new HttpResponse(null, { status: 418 }),
-      ),
-    );
+    server.use(http.post(`${BASE_URL}/complete`, () => new HttpResponse(null, { status: 418 })));
 
     const err = await httpRequest(defaultOpts).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(GateCtrApiError);
@@ -238,7 +228,9 @@ describe("httpRequest — caller AbortSignal cancellation", () => {
     );
 
     const controller = new AbortController();
-    setTimeout(() => controller.abort(), 30);
+    setTimeout(() => {
+      controller.abort();
+    }, 30);
 
     const opts = { ...defaultOpts, signal: controller.signal, timeoutMs: 5000, maxRetries: 0 };
     await expect(httpRequest(opts)).rejects.toThrow();
@@ -249,7 +241,10 @@ describe("httpRequest — error body parsing", () => {
   it("uses message field from error body when present", async () => {
     server.use(
       http.post(`${BASE_URL}/complete`, () =>
-        HttpResponse.json({ message: "Custom error message", code: "custom_code" }, { status: 400 }),
+        HttpResponse.json(
+          { message: "Custom error message", code: "custom_code" },
+          { status: 400 },
+        ),
       ),
     );
 
@@ -274,10 +269,13 @@ describe("httpRequest — error body parsing", () => {
   it("includes requestId from response header in GateCtrApiError", async () => {
     server.use(
       http.post(`${BASE_URL}/complete`, () =>
-        HttpResponse.json({ error: "Not found" }, {
-          status: 404,
-          headers: { "x-gatectr-request-id": "req_xyz789" },
-        }),
+        HttpResponse.json(
+          { error: "Not found" },
+          {
+            status: 404,
+            headers: { "x-gatectr-request-id": "req_xyz789" },
+          },
+        ),
       ),
     );
 
@@ -333,11 +331,13 @@ describe("httpRequest — retryable error body parsing", () => {
 
   it("falls back to HTTP status message when retryable body is not valid JSON", async () => {
     server.use(
-      http.post(`${BASE_URL}/complete`, () =>
-        new HttpResponse("not json", {
-          status: 500,
-          headers: { "Content-Type": "text/plain" },
-        }),
+      http.post(
+        `${BASE_URL}/complete`,
+        () =>
+          new HttpResponse("not json", {
+            status: 500,
+            headers: { "Content-Type": "text/plain" },
+          }),
       ),
     );
 
@@ -348,11 +348,13 @@ describe("httpRequest — retryable error body parsing", () => {
 
   it("falls back to HTTP status message when non-retryable body is not valid JSON", async () => {
     server.use(
-      http.post(`${BASE_URL}/complete`, () =>
-        new HttpResponse("not json", {
-          status: 400,
-          headers: { "Content-Type": "text/plain" },
-        }),
+      http.post(
+        `${BASE_URL}/complete`,
+        () =>
+          new HttpResponse("not json", {
+            status: 400,
+            headers: { "Content-Type": "text/plain" },
+          }),
       ),
     );
 
@@ -364,9 +366,7 @@ describe("httpRequest — retryable error body parsing", () => {
 
 describe("httpRequest — caller signal already aborted before request", () => {
   it("throws immediately when caller signal is pre-aborted", async () => {
-    server.use(
-      http.post(`${BASE_URL}/complete`, () => HttpResponse.json({})),
-    );
+    server.use(http.post(`${BASE_URL}/complete`, () => HttpResponse.json({})));
 
     const controller = new AbortController();
     controller.abort(); // abort before the call

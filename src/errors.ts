@@ -25,12 +25,7 @@ export class GateCtrApiError extends GateCtrError {
   readonly code: string;
   readonly requestId: string | undefined;
 
-  constructor(opts: {
-    message: string;
-    status: number;
-    code: string;
-    requestId?: string;
-  }) {
+  constructor(opts: { message: string; status: number; code: string; requestId?: string }) {
     super(opts.message);
     this.name = "GateCtrApiError";
     this.status = opts.status;
@@ -62,7 +57,7 @@ export class GateCtrTimeoutError extends GateCtrError {
   readonly timeoutMs: number;
 
   constructor(timeoutMs: number) {
-    super(`Request timed out after ${timeoutMs}ms`);
+    super(`Request timed out after ${String(timeoutMs)}ms`);
     this.name = "GateCtrTimeoutError";
     this.timeoutMs = timeoutMs;
     Object.setPrototypeOf(this, new.target.prototype);
