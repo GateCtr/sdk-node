@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1
+
+### Patch Changes
+
+- fd009f6: ci: verify automated publish pipeline via Trusted Publishing
+
 ## 0.2.0
 
 ### Minor Changes
