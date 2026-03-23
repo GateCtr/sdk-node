@@ -21,8 +21,9 @@
     "sdk"
   ],
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
+  "packageManager": "pnpm@10.32.1",
   "type": "module",
   "main": "./dist/cjs/index.js",
   "module": "./dist/esm/index.js",
