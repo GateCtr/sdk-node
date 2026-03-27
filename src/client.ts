@@ -422,7 +422,7 @@ export class GateCtr {
 
     const body = (await raw.json()) as Record<string, unknown>;
     const series = ((body["series"] as Array<Record<string, unknown>>) ?? []).map((p) => ({
-      date: String(p["date"] ?? ""),
+      date: typeof p["date"] === "string" ? p["date"] : "",
       totalTokens: Number(p["totalTokens"] ?? 0),
       savedTokens: Number(p["savedTokens"] ?? 0),
       totalRequests: Number(p["totalRequests"] ?? 0),
@@ -430,9 +430,9 @@ export class GateCtr {
     }));
 
     return {
-      granularity: String(body["granularity"] ?? "day"),
-      from: String(body["from"] ?? ""),
-      to: String(body["to"] ?? ""),
+      granularity: typeof body["granularity"] === "string" ? body["granularity"] : "day",
+      from: typeof body["from"] === "string" ? body["from"] : "",
+      to: typeof body["to"] === "string" ? body["to"] : "",
       series,
     };
   }

@@ -148,6 +148,65 @@ export function mockUsageResponse(overrides?: Record<string, unknown>) {
   };
 }
 
+export function mockUsageTrendsResponse(overrides?: Record<string, unknown>) {
+  return {
+    granularity: "day",
+    from: "2025-01-01",
+    to: "2025-01-07",
+    series: [
+      { date: "2025-01-01", totalTokens: 10000, savedTokens: 2000, totalRequests: 50, totalCostUsd: 0.3 },
+      { date: "2025-01-02", totalTokens: 12000, savedTokens: 2400, totalRequests: 60, totalCostUsd: 0.36 },
+    ],
+    ...overrides,
+  };
+}
+
+export function mockWebhook(overrides?: Record<string, unknown>) {
+  return {
+    id: "wh_test123",
+    name: "My Webhook",
+    url: "https://example.com/hook",
+    events: ["budget.alert", "request.completed"],
+    isActive: true,
+    lastFiredAt: null,
+    failCount: 0,
+    successCount: 5,
+    createdAt: "2025-01-01T00:00:00Z",
+    ...overrides,
+  };
+}
+
+export function mockBudget(overrides?: Record<string, unknown>) {
+  return {
+    id: "bgt_test123",
+    userId: "user_abc",
+    projectId: null,
+    maxTokensPerDay: 100000,
+    maxTokensPerMonth: 2000000,
+    maxCostPerDay: null,
+    maxCostPerMonth: null,
+    alertThresholdPct: 80,
+    hardStop: false,
+    notifyOnThreshold: true,
+    notifyOnExceeded: true,
+    createdAt: "2025-01-01T00:00:00Z",
+    updatedAt: "2025-01-01T00:00:00Z",
+    ...overrides,
+  };
+}
+
+export function mockProviderKey(overrides?: Record<string, unknown>) {
+  return {
+    id: "pk_test123",
+    provider: "openai",
+    name: "Default",
+    isActive: true,
+    lastUsedAt: null,
+    createdAt: "2025-01-01T00:00:00Z",
+    ...overrides,
+  };
+}
+
 // ─── Default response headers ────────────────────────────────────────────────
 
 export const DEFAULT_RESPONSE_HEADERS = {
@@ -189,6 +248,62 @@ export const handlers = [
     HttpResponse.json(mockUsageResponse(), {
       headers: DEFAULT_RESPONSE_HEADERS,
     }),
+  ),
+
+  // GET /usage/trends
+  http.get(`${BASE_URL}/usage/trends`, () =>
+    HttpResponse.json(mockUsageTrendsResponse(), {
+      headers: DEFAULT_RESPONSE_HEADERS,
+    }),
+  ),
+
+  // GET /webhooks
+  http.get(`${BASE_URL}/webhooks`, () =>
+    HttpResponse.json({ webhooks: [mockWebhook()] }, {
+      headers: DEFAULT_RESPONSE_HEADERS,
+    }),
+  ),
+
+  // POST /webhooks
+  http.post(`${BASE_URL}/webhooks`, () =>
+    HttpResponse.json(mockWebhook(), { status: 201, headers: DEFAULT_RESPONSE_HEADERS }),
+  ),
+
+  // PATCH /webhooks/:id
+  http.patch(`${BASE_URL}/webhooks/:id`, () =>
+    HttpResponse.json(mockWebhook({ name: "Updated" }), { headers: DEFAULT_RESPONSE_HEADERS }),
+  ),
+
+  // DELETE /webhooks/:id
+  http.delete(`${BASE_URL}/webhooks/:id`, () =>
+    new HttpResponse(null, { status: 204 }),
+  ),
+
+  // GET /budget
+  http.get(`${BASE_URL}/budget`, () =>
+    HttpResponse.json({ userBudget: mockBudget(), projectBudgets: [] }, {
+      headers: DEFAULT_RESPONSE_HEADERS,
+    }),
+  ),
+
+  // POST /budget
+  http.post(`${BASE_URL}/budget`, () =>
+    HttpResponse.json(mockBudget(), { headers: DEFAULT_RESPONSE_HEADERS }),
+  ),
+
+  // GET /provider-keys
+  http.get(`${BASE_URL}/provider-keys`, () =>
+    HttpResponse.json([mockProviderKey()], { headers: DEFAULT_RESPONSE_HEADERS }),
+  ),
+
+  // POST /provider-keys
+  http.post(`${BASE_URL}/provider-keys`, () =>
+    HttpResponse.json(mockProviderKey(), { status: 201, headers: DEFAULT_RESPONSE_HEADERS }),
+  ),
+
+  // DELETE /provider-keys/:id
+  http.delete(`${BASE_URL}/provider-keys/:id`, () =>
+    HttpResponse.json({ success: true }, { headers: DEFAULT_RESPONSE_HEADERS }),
   ),
 ];
 

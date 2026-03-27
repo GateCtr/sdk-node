@@ -6,6 +6,10 @@ import {
   mockCompleteResponse,
   mockChatResponse,
   mockUsageResponse,
+  mockUsageTrendsResponse,
+  mockWebhook,
+  mockBudget,
+  mockProviderKey,
   mockSSEResponse,
   DEFAULT_RESPONSE_HEADERS,
 } from "./handlers.js";
@@ -813,5 +817,110 @@ describe("GateCtr — chat() with non-array choices", () => {
       messages: [{ role: "user", content: "hi" }],
     });
     expect(res.choices).toHaveLength(0);
+  });
+});
+
+// ─── usageTrends ─────────────────────────────────────────────────────────────
+
+describe("client.usageTrends()", () => {
+  it("returns trend series with correct shape", async () => {
+    const client = new GateCtr({ apiKey: "gct_test" });
+    const res = await client.usageTrends();
+    expect(res.granularity).toBe("day");
+    expect(res.from).toBe("2025-01-01");
+    expect(res.to).toBe("2025-01-07");
+    expect(res.series).toHaveLength(2);
+    expect(res.series[0]).toMatchObject({
+      date: "2025-01-01",
+      totalTokens: 10000,
+      savedTokens: 2000,
+      totalRequests: 50,
+      totalCostUsd: 0.3,
+    });
+  });
+
+  it("passes query params correctly", async () => {
+    let capturedUrl = "";
+    server.use(
+      http.get("https://api.gatectr.com/v1/usage/trends", ({ request }) => {
+        capturedUrl = request.url;
+        return HttpResponse.json(mockUsageTrendsResponse(), { headers: DEFAULT_RESPONSE_HEADERS });
+      }),
+    );
+    const client = new GateCtr({ apiKey: "gct_test" });
+    await client.usageTrends({ from: "2025-01-01", to: "2025-01-31", granularity: "week" });
+    expect(capturedUrl).toContain("from=2025-01-01");
+    expect(capturedUrl).toContain("to=2025-01-31");
+    expect(capturedUrl).toContain("granularity=week");
+  });
+});
+
+// ─── webhooks ─────────────────────────────────────────────────────────────────
+
+describe("client.webhooks", () => {
+  it("list() returns webhooks array", async () => {
+    const client = new GateCtr({ apiKey: "gct_test" });
+    const res = await client.webhooks.list();
+    expect(res.webhooks).toHaveLength(1);
+    expect(res.webhooks[0]?.id).toBe("wh_test123");
+  });
+
+  it("create() returns created webhook", async () => {
+    const client = new GateCtr({ apiKey: "gct_test" });
+    const res = await client.webhooks.create({ name: "My Webhook", url: "https://example.com/hook" });
+    expect(res.id).toBe("wh_test123");
+    expect(res.name).toBe("My Webhook");
+  });
+
+  it("update() returns updated webhook", async () => {
+    const client = new GateCtr({ apiKey: "gct_test" });
+    const res = await client.webhooks.update("wh_test123", { name: "Updated" });
+    expect(res.name).toBe("Updated");
+  });
+
+  it("delete() resolves without error", async () => {
+    const client = new GateCtr({ apiKey: "gct_test" });
+    await expect(client.webhooks.delete("wh_test123")).resolves.toBeUndefined();
+  });
+});
+
+// ─── budget ───────────────────────────────────────────────────────────────────
+
+describe("client.budget", () => {
+  it("get() returns budget response", async () => {
+    const client = new GateCtr({ apiKey: "gct_test" });
+    const res = await client.budget.get();
+    expect(res.userBudget?.id).toBe("bgt_test123");
+    expect(res.projectBudgets).toHaveLength(0);
+  });
+
+  it("set() returns updated budget", async () => {
+    const client = new GateCtr({ apiKey: "gct_test" });
+    const res = await client.budget.set({ maxTokensPerDay: 100000 });
+    expect(res.id).toBe("bgt_test123");
+    expect(res.maxTokensPerDay).toBe(100000);
+  });
+});
+
+// ─── providerKeys ─────────────────────────────────────────────────────────────
+
+describe("client.providerKeys", () => {
+  it("list() returns provider keys array", async () => {
+    const client = new GateCtr({ apiKey: "gct_test" });
+    const res = await client.providerKeys.list();
+    expect(res).toHaveLength(1);
+    expect(res[0]?.provider).toBe("openai");
+  });
+
+  it("add() returns created provider key", async () => {
+    const client = new GateCtr({ apiKey: "gct_test" });
+    const res = await client.providerKeys.add({ provider: "openai", apiKey: "sk-test" });
+    expect(res.id).toBe("pk_test123");
+    expect(res.provider).toBe("openai");
+  });
+
+  it("remove() resolves without error", async () => {
+    const client = new GateCtr({ apiKey: "gct_test" });
+    await expect(client.providerKeys.remove("pk_test123")).resolves.toBeUndefined();
   });
 });
