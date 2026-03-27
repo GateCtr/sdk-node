@@ -11,6 +11,7 @@
 - feat: support `PATCH` and `DELETE` HTTP methods in `httpRequest`
 
 All new methods require the appropriate scope on the API key:
+
 - `read` scope: `usageTrends()`, `webhooks.list()`, `budget.get()`, `providerKeys.list()`
 - `admin` scope: `webhooks.create/update/delete()`, `budget.set()`, `providerKeys.add/remove()`
 

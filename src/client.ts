@@ -29,7 +29,6 @@ import type {
 } from "./types.js";
 import type { RequestOptions } from "./http.js";
 
-
 // SDK version constant — avoids ESM/CJS import.meta.url compatibility issues
 const SDK_VERSION = "0.1.0";
 
@@ -532,7 +531,11 @@ export class GateCtr {
         method: "POST",
         url: `${this._baseUrl}/provider-keys`,
         headers: { ...this.buildHeaders(), "Content-Type": "application/json" },
-        body: JSON.stringify({ provider: params.provider, apiKey: params.apiKey, name: params.name }),
+        body: JSON.stringify({
+          provider: params.provider,
+          apiKey: params.apiKey,
+          name: params.name,
+        }),
         timeoutMs: this._timeout,
         maxRetries: this._maxRetries,
       });
@@ -550,4 +553,3 @@ export class GateCtr {
     },
   };
 }
-

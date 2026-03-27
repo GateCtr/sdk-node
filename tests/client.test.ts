@@ -864,7 +864,10 @@ describe("client.webhooks", () => {
 
   it("create() returns created webhook", async () => {
     const client = new GateCtr({ apiKey: "gct_test" });
-    const res = await client.webhooks.create({ name: "My Webhook", url: "https://example.com/hook" });
+    const res = await client.webhooks.create({
+      name: "My Webhook",
+      url: "https://example.com/hook",
+    });
     expect(res.id).toBe("wh_test123");
     expect(res.name).toBe("My Webhook");
   });

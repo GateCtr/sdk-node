@@ -154,8 +154,20 @@ export function mockUsageTrendsResponse(overrides?: Record<string, unknown>) {
     from: "2025-01-01",
     to: "2025-01-07",
     series: [
-      { date: "2025-01-01", totalTokens: 10000, savedTokens: 2000, totalRequests: 50, totalCostUsd: 0.3 },
-      { date: "2025-01-02", totalTokens: 12000, savedTokens: 2400, totalRequests: 60, totalCostUsd: 0.36 },
+      {
+        date: "2025-01-01",
+        totalTokens: 10000,
+        savedTokens: 2000,
+        totalRequests: 50,
+        totalCostUsd: 0.3,
+      },
+      {
+        date: "2025-01-02",
+        totalTokens: 12000,
+        savedTokens: 2400,
+        totalRequests: 60,
+        totalCostUsd: 0.36,
+      },
     ],
     ...overrides,
   };
@@ -259,9 +271,12 @@ export const handlers = [
 
   // GET /webhooks
   http.get(`${BASE_URL}/webhooks`, () =>
-    HttpResponse.json({ webhooks: [mockWebhook()] }, {
-      headers: DEFAULT_RESPONSE_HEADERS,
-    }),
+    HttpResponse.json(
+      { webhooks: [mockWebhook()] },
+      {
+        headers: DEFAULT_RESPONSE_HEADERS,
+      },
+    ),
   ),
 
   // POST /webhooks
@@ -275,15 +290,16 @@ export const handlers = [
   ),
 
   // DELETE /webhooks/:id
-  http.delete(`${BASE_URL}/webhooks/:id`, () =>
-    new HttpResponse(null, { status: 204 }),
-  ),
+  http.delete(`${BASE_URL}/webhooks/:id`, () => new HttpResponse(null, { status: 204 })),
 
   // GET /budget
   http.get(`${BASE_URL}/budget`, () =>
-    HttpResponse.json({ userBudget: mockBudget(), projectBudgets: [] }, {
-      headers: DEFAULT_RESPONSE_HEADERS,
-    }),
+    HttpResponse.json(
+      { userBudget: mockBudget(), projectBudgets: [] },
+      {
+        headers: DEFAULT_RESPONSE_HEADERS,
+      },
+    ),
   ),
 
   // POST /budget
