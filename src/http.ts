@@ -2,7 +2,7 @@
 import { GateCtrApiError, GateCtrNetworkError, GateCtrTimeoutError } from "./errors.js";
 
 export interface RequestOptions {
-  method: "GET" | "POST";
+  method: "GET" | "POST" | "PATCH" | "DELETE";
   url: string;
   headers: Record<string, string>;
   body?: unknown;
