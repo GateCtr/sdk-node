@@ -421,7 +421,10 @@ export class GateCtr {
     });
 
     const body = (await raw.json()) as Record<string, unknown>;
-    const series = ((body["series"] as Array<Record<string, unknown>>) ?? []).map((p) => ({
+    const rawSeries = Array.isArray(body["series"])
+      ? (body["series"] as Array<Record<string, unknown>>)
+      : [];
+    const series = rawSeries.map((p) => ({
       date: typeof p["date"] === "string" ? p["date"] : "",
       totalTokens: Number(p["totalTokens"] ?? 0),
       savedTokens: Number(p["savedTokens"] ?? 0),
