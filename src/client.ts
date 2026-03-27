@@ -14,9 +14,21 @@ import type {
   ModelsResponse,
   UsageParams,
   UsageResponse,
+  UsageTrendsParams,
+  UsageTrendsResponse,
+  WebhookCreateParams,
+  WebhookUpdateParams,
+  WebhooksListResponse,
+  Webhook,
+  BudgetSetParams,
+  Budget,
+  BudgetGetResponse,
+  ProviderKeyAddParams,
+  ProviderKey,
   GateCtrMetadata,
 } from "./types.js";
 import type { RequestOptions } from "./http.js";
+
 
 // SDK version constant — avoids ESM/CJS import.meta.url compatibility issues
 const SDK_VERSION = "0.1.0";
@@ -388,4 +400,151 @@ export class GateCtr {
         : {}),
     };
   }
+
+  /**
+   * Fetch usage trends (time series) — GET /usage/trends
+   * Requires scope: read
+   */
+  async usageTrends(params?: UsageTrendsParams): Promise<UsageTrendsResponse> {
+    const url = new URL(`${this._baseUrl}/usage/trends`);
+    if (params?.from) url.searchParams.set("from", params.from);
+    if (params?.to) url.searchParams.set("to", params.to);
+    if (params?.projectId) url.searchParams.set("projectId", params.projectId);
+    if (params?.granularity) url.searchParams.set("granularity", params.granularity);
+
+    const raw = await httpRequest({
+      method: "GET",
+      url: url.toString(),
+      headers: this.buildHeaders(),
+      timeoutMs: this._timeout,
+      maxRetries: this._maxRetries,
+    });
+
+    const body = (await raw.json()) as Record<string, unknown>;
+    const series = ((body["series"] as Array<Record<string, unknown>>) ?? []).map((p) => ({
+      date: String(p["date"] ?? ""),
+      totalTokens: Number(p["totalTokens"] ?? 0),
+      savedTokens: Number(p["savedTokens"] ?? 0),
+      totalRequests: Number(p["totalRequests"] ?? 0),
+      totalCostUsd: Number(p["totalCostUsd"] ?? 0),
+    }));
+
+    return {
+      granularity: String(body["granularity"] ?? "day"),
+      from: String(body["from"] ?? ""),
+      to: String(body["to"] ?? ""),
+      series,
+    };
+  }
+
+  /** Webhook management — requires scope: admin (write) or read (list) */
+  readonly webhooks = {
+    list: async (): Promise<WebhooksListResponse> => {
+      const raw = await httpRequest({
+        method: "GET",
+        url: `${this._baseUrl}/webhooks`,
+        headers: this.buildHeaders(),
+        timeoutMs: this._timeout,
+        maxRetries: this._maxRetries,
+      });
+      return (await raw.json()) as WebhooksListResponse;
+    },
+
+    create: async (params: WebhookCreateParams): Promise<Webhook> => {
+      const raw = await httpRequest({
+        method: "POST",
+        url: `${this._baseUrl}/webhooks`,
+        headers: { ...this.buildHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify(params),
+        timeoutMs: this._timeout,
+        maxRetries: this._maxRetries,
+      });
+      return (await raw.json()) as Webhook;
+    },
+
+    update: async (id: string, params: WebhookUpdateParams): Promise<Webhook> => {
+      const raw = await httpRequest({
+        method: "PATCH",
+        url: `${this._baseUrl}/webhooks/${id}`,
+        headers: { ...this.buildHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify(params),
+        timeoutMs: this._timeout,
+        maxRetries: this._maxRetries,
+      });
+      return (await raw.json()) as Webhook;
+    },
+
+    delete: async (id: string): Promise<void> => {
+      await httpRequest({
+        method: "DELETE",
+        url: `${this._baseUrl}/webhooks/${id}`,
+        headers: this.buildHeaders(),
+        timeoutMs: this._timeout,
+        maxRetries: this._maxRetries,
+      });
+    },
+  };
+
+  /** Budget management — requires scope: admin (write) or read (get) */
+  readonly budget = {
+    get: async (): Promise<BudgetGetResponse> => {
+      const raw = await httpRequest({
+        method: "GET",
+        url: `${this._baseUrl}/budget`,
+        headers: this.buildHeaders(),
+        timeoutMs: this._timeout,
+        maxRetries: this._maxRetries,
+      });
+      return (await raw.json()) as BudgetGetResponse;
+    },
+
+    set: async (params: BudgetSetParams): Promise<Budget> => {
+      const raw = await httpRequest({
+        method: "POST",
+        url: `${this._baseUrl}/budget`,
+        headers: { ...this.buildHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify(params),
+        timeoutMs: this._timeout,
+        maxRetries: this._maxRetries,
+      });
+      return (await raw.json()) as Budget;
+    },
+  };
+
+  /** Provider key management — requires scope: admin (write) or read (list) */
+  readonly providerKeys = {
+    list: async (): Promise<ProviderKey[]> => {
+      const raw = await httpRequest({
+        method: "GET",
+        url: `${this._baseUrl}/provider-keys`,
+        headers: this.buildHeaders(),
+        timeoutMs: this._timeout,
+        maxRetries: this._maxRetries,
+      });
+      return (await raw.json()) as ProviderKey[];
+    },
+
+    add: async (params: ProviderKeyAddParams): Promise<ProviderKey> => {
+      const raw = await httpRequest({
+        method: "POST",
+        url: `${this._baseUrl}/provider-keys`,
+        headers: { ...this.buildHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: params.provider, apiKey: params.apiKey, name: params.name }),
+        timeoutMs: this._timeout,
+        maxRetries: this._maxRetries,
+      });
+      return (await raw.json()) as ProviderKey;
+    },
+
+    remove: async (id: string, hard = false): Promise<void> => {
+      await httpRequest({
+        method: "DELETE",
+        url: `${this._baseUrl}/provider-keys/${id}${hard ? "?hard=true" : ""}`,
+        headers: this.buildHeaders(),
+        timeoutMs: this._timeout,
+        maxRetries: this._maxRetries,
+      });
+    },
+  };
 }
+

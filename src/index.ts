@@ -29,4 +29,17 @@ export type {
   UsageParams,
   UsageByProject,
   UsageResponse,
+  UsageTrendsParams,
+  UsageTrendPoint,
+  UsageTrendsResponse,
+  WebhookCreateParams,
+  WebhookUpdateParams,
+  WebhooksListResponse,
+  Webhook,
+  BudgetSetParams,
+  Budget,
+  BudgetGetResponse,
+  ProviderKeyAddParams,
+  ProviderKey,
 } from "./types.js";
+

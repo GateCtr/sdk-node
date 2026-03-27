@@ -1,10 +1,20 @@
 # Changelog
 
+## 0.3.0
+
+### Minor Changes
+
+- feat: add `usageTrends()` — time series analytics via `GET /usage/trends`
+- feat: add `webhooks` namespace — `list()`, `create()`, `update()`, `delete()`
+- feat: add `budget` namespace — `get()`, `set()`
+- feat: add `providerKeys` namespace — `list()`, `add()`, `remove()`
+- feat: support `PATCH` and `DELETE` HTTP methods in `httpRequest`
+
+All new methods require the appropriate scope on the API key:
+- `read` scope: `usageTrends()`, `webhooks.list()`, `budget.get()`, `providerKeys.list()`
+- `admin` scope: `webhooks.create/update/delete()`, `budget.set()`, `providerKeys.add/remove()`
+
 ## 0.2.1
-
-### Patch Changes
-
-- fd009f6: ci: verify automated publish pipeline via Trusted Publishing
 
 ## 0.2.0
 

@@ -161,3 +161,126 @@ export interface UsageResponse {
   byProject: UsageByProject[];
   budgetStatus?: Record<string, unknown>;
 }
+
+// ─── Usage Trends ─────────────────────────────────────────────────────────────
+
+/** Optional filters for client.usageTrends() */
+export interface UsageTrendsParams {
+  /** Start date in YYYY-MM-DD format */
+  from?: string;
+  /** End date in YYYY-MM-DD format */
+  to?: string;
+  /** Filter by project ID */
+  projectId?: string;
+  /** Granularity: "day" | "week" | "month". Default: "day" */
+  granularity?: "day" | "week" | "month";
+}
+
+/** A single data point in the trend series */
+export interface UsageTrendPoint {
+  date: string;
+  totalTokens: number;
+  savedTokens: number;
+  totalRequests: number;
+  totalCostUsd: number;
+}
+
+/** Response from client.usageTrends() */
+export interface UsageTrendsResponse {
+  granularity: string;
+  from: string;
+  to: string;
+  series: UsageTrendPoint[];
+}
+
+// ─── Webhooks ─────────────────────────────────────────────────────────────────
+
+/** Parameters for client.webhooks.create() */
+export interface WebhookCreateParams {
+  name: string;
+  url: string;
+  events?: string[];
+}
+
+/** Parameters for client.webhooks.update() */
+export interface WebhookUpdateParams {
+  name?: string;
+  url?: string;
+  events?: string[];
+  isActive?: boolean;
+}
+
+/** A webhook object */
+export interface Webhook {
+  id: string;
+  name: string;
+  url: string;
+  events: string[];
+  isActive: boolean;
+  lastFiredAt: string | null;
+  failCount: number;
+  successCount: number;
+  createdAt: string;
+}
+
+/** Response from client.webhooks.list() */
+export interface WebhooksListResponse {
+  webhooks: Webhook[];
+}
+
+// ─── Budget ───────────────────────────────────────────────────────────────────
+
+/** Parameters for client.budget.set() */
+export interface BudgetSetParams {
+  projectId?: string;
+  maxTokensPerDay?: number;
+  maxTokensPerMonth?: number;
+  maxCostPerDay?: number;
+  maxCostPerMonth?: number;
+  alertThresholdPct?: number;
+  hardStop?: boolean;
+  notifyOnThreshold?: boolean;
+  notifyOnExceeded?: boolean;
+}
+
+/** A budget object */
+export interface Budget {
+  id: string;
+  userId?: string | null;
+  projectId?: string | null;
+  maxTokensPerDay: number | null;
+  maxTokensPerMonth: number | null;
+  maxCostPerDay: number | null;
+  maxCostPerMonth: number | null;
+  alertThresholdPct: number;
+  hardStop: boolean;
+  notifyOnThreshold: boolean;
+  notifyOnExceeded: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Response from client.budget.get() */
+export interface BudgetGetResponse {
+  userBudget: Budget | null;
+  projectBudgets: Array<Budget & { project: { id: string; name: string; slug: string } }>;
+}
+
+// ─── Provider Keys ────────────────────────────────────────────────────────────
+
+/** Parameters for client.providerKeys.add() */
+export interface ProviderKeyAddParams {
+  provider: "openai" | "anthropic" | "mistral" | "gemini";
+  apiKey: string;
+  name?: string;
+}
+
+/** A provider key object (never exposes the raw key) */
+export interface ProviderKey {
+  id: string;
+  provider: string;
+  name: string;
+  isActive: boolean;
+  lastUsedAt: string | null;
+  createdAt: string;
+}
