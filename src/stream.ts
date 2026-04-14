@@ -16,7 +16,6 @@ export async function* parseSSE(
   let buffer = "";
 
   try {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     while (true) {
       // Check for cancellation before each read
 

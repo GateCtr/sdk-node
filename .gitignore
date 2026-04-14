@@ -4,4 +4,7 @@ coverage/
 *.tsbuildinfo
 .env
 .env.*
+src_backup/
+*.bak
+
 !.env.example
